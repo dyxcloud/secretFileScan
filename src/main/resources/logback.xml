@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+<!--	<property name="LOGGING_HOME" value="D:/log" />-->
+
+	<appender name="FILE" class="ch.qos.logback.core.FileAppender">
+		<file>log\fileScan.log</file>
+		<encoder>
+			<pattern>%date %level [%file:%line] %msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>%msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<root level="info">
+		<appender-ref ref="FILE" />
+		<!--<appender-ref ref="STDOUT" />-->
+	</root>
+ </configuration>
