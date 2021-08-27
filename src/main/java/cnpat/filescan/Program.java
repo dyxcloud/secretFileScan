@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -33,22 +34,27 @@ public class Program {
                 , System.getenv().get("COMPUTERNAME")
                 , DateUtil.formatLocalDateTime(LocalDateTime.now()).replace(':', '_'));
         List<File> roots = diskWalker.getRoots();
-        // List<File> roots = Collections.singletonList(new File("C:\\WorkSpace\\Projects\\cmdb\\doc\\"));
+        // List<File> roots = Collections.singletonList(new File("F:\\"));
         for (File root : roots) {
             try {
                 print("索引" + root + "盘文件...");
                 List<File> files = diskWalker.walkPath(root);
-                resultAppender.countMap.put(root.getPath(), new int[]{files.size(), 0});
-                print(">>>>>>>>>开始扫描磁盘:" + root.getPath()+" 文件数量:"+files.size());
-                final int sub = files.size()/10;
-                int s = sub,time=1;
-                for(int i=0;i<files.size();i++){
-                    if(i==s){
-                        print(StrUtil.format("已完成{}0% 文件进度: {}/{}", time, i, files.size()));
-                        s+=sub;
+                int diskSize = files.size();
+                String rootPath = root.getPath();
+                rootPath = rootPath.substring(0, rootPath.indexOf(":\\") + 2);
+                resultAppender.countMap.put(rootPath, new int[]{diskSize, 0});
+                print(">>>>>>>>>开始扫描磁盘:" + root.getPath()+" 文件数量:"+diskSize);
+                final double unit = 0.1;
+                double perCent = unit;
+                int time=1;
+                for(int i=0;i<diskSize;i++){
+                    if (i >= diskSize * perCent) {
+                        print(StrUtil.format("已完成{}0% 文件进度: {}/{}", time, i, diskSize));
+                        perCent += unit;
                         time++;
                     }
-                    File f = files.get(i);
+                    int index = diskSize - i - 1;
+                    File f = files.remove(index);
                     try {
                         fileChecker.check(f);
                     } catch (Exception e) {
