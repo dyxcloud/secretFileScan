@@ -212,7 +212,7 @@ public class FileChecker {
                 }
             });
         } catch (Exception e) {
-            if (e.getMessage().contains("sax扫描中命中关键字")) {
+            if (e.getMessage() != null && e.getMessage().contains("sax扫描中命中关键字")) {
                 return data[0];
             } else {
                 log.error("读取文件失败: " + f.getAbsolutePath(), e);

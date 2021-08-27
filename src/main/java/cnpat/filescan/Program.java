@@ -35,20 +35,28 @@ public class Program {
         List<File> roots = diskWalker.getRoots();
         // List<File> roots = Collections.singletonList(new File("C:\\WorkSpace\\Projects\\cmdb\\doc\\"));
         for (File root : roots) {
-            print("索引" + root + "盘文件...");
-            List<File> files = diskWalker.walkPath(root);
-            resultAppender.countMap.put(root.getPath(), new int[]{files.size(), 0});
-            print(">>>>>>>>>开始扫描磁盘:" + root.getPath()+" 文件数量:"+files.size());
-            final int sub = files.size()/10;
-            int s = sub,time=1;
-            for(int i=0;i<files.size();i++){
-                if(i==s){
-                    print(StrUtil.format("已完成{}0% 文件进度: {}/{}", time, i, files.size()));
-                    s+=sub;
-                    time++;
+            try {
+                print("索引" + root + "盘文件...");
+                List<File> files = diskWalker.walkPath(root);
+                resultAppender.countMap.put(root.getPath(), new int[]{files.size(), 0});
+                print(">>>>>>>>>开始扫描磁盘:" + root.getPath()+" 文件数量:"+files.size());
+                final int sub = files.size()/10;
+                int s = sub,time=1;
+                for(int i=0;i<files.size();i++){
+                    if(i==s){
+                        print(StrUtil.format("已完成{}0% 文件进度: {}/{}", time, i, files.size()));
+                        s+=sub;
+                        time++;
+                    }
+                    File f = files.get(i);
+                    try {
+                        fileChecker.check(f);
+                    } catch (Exception e) {
+                        log.error("check error",e);
+                    }
                 }
-                File f = files.get(i);
-                fileChecker.check(f);
+            } catch (Exception e) {
+                log.error("walkPath error",e);
             }
         }
         print(">>>>>>>>>扫描完成");
