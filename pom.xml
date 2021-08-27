@@ -17,15 +17,15 @@
         <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-core</artifactId>
-            <version>5.7.9</version>
+            <version>5.7.10</version>
         </dependency>
 
         <!--POI-->
-        <!--<dependency>
+        <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-poi</artifactId>
-            <version>5.7.9</version>
-        </dependency>-->
+            <version>5.7.10</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
@@ -48,7 +48,7 @@
         <!--<dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-dfa</artifactId>
-            <version>5.7.9</version>
+            <version>5.7.10</version>
         </dependency>-->
 
         <!--LOG-->
@@ -65,7 +65,6 @@
             <version>5.7.2</version>
             <scope>test</scope>
         </dependency>
-
     </dependencies>
     
     

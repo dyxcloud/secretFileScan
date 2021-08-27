@@ -1,12 +1,7 @@
 package cnpat.filescan;
 
 import cn.hutool.core.io.FileUtil;
-import cn.hutool.poi.excel.ExcelFileUtil;
-import cn.hutool.poi.excel.sax.Excel03SaxReader;
-import cn.hutool.poi.excel.sax.Excel07SaxReader;
-import cn.hutool.poi.excel.sax.ExcelSaxReader;
-import cn.hutool.poi.excel.sax.handler.RowHandler;
-import cn.hutool.poi.exceptions.POIException;
+import cn.hutool.poi.excel.ExcelUtil;
 import org.apache.pdfbox.io.MemoryUsageSetting;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -16,11 +11,7 @@ import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.hwpf.HWPFDocument;
 import org.apache.poi.hwpf.extractor.WordExtractor;
-import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
-import org.apache.poi.openxml4j.opc.OPCPackage;
-import org.apache.poi.openxml4j.opc.PackageAccess;
 import org.apache.poi.openxml4j.util.ZipSecureFile;
-import org.apache.poi.poifs.filesystem.POIFSFileSystem;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -32,7 +23,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -51,19 +41,18 @@ public class FileChecker {
         funcMap.put("xls", this::checkExcel);
         funcMap.put("xlsx", this::checkExcel);
         funcMap.put("pdf", this::checkPDF);
-        ZipSecureFile.setMinInflateRatio(-1.0d);//poi解压比例限制
     }
 
     public void check(File f) {
         //判断文件名
         CheckResult checkName = checkName(f);
         if (checkName.isRisk()) {
-            Program.print("发现风险文件:"+ f.getAbsolutePath());
+            Program.print("发现风险文件:" + f.getAbsolutePath());
             Program.resultAppender.append(checkName, f);
             return;
         }
         //判断文件内容
-        String suffix = FileUtil.getSuffix(f);
+        String suffix = FileUtil.getSuffix(f).toLowerCase();
         Function<File, CheckResult> func = funcMap.get(suffix);
         if (func == null) {
             return;
@@ -71,7 +60,7 @@ public class FileChecker {
         log.info("parse file:" + f.getAbsolutePath());
         CheckResult apply = func.apply(f);
         if (apply.isRisk()) {
-            Program.print("发现风险文件:"+ f.getAbsolutePath());
+            Program.print("发现风险文件:" + f.getAbsolutePath());
             Program.resultAppender.append(apply, f);
         }
     }
@@ -80,9 +69,39 @@ public class FileChecker {
         return rule.checkTest(f.getName(), CheckResult.CheckContentFileName);
     }
 
+    /**
+     * 文件过大返回true
+     */
+    public boolean isLargeSize(File f) {
+        String suffix = FileUtil.getSuffix(f).toLowerCase();
+        switch (suffix) {
+            case "doc":
+                return f.length() > 90 * 1024 * 1024;
+            case "docx":
+                if (f.length() > 90 * 1024 * 1024) {
+                    return true;
+                } else {
+                    // ZipSecureFile.setMinInflateRatio(0.05d);//poi解压比例限制
+                    ZipSecureFile.setMaxEntrySize(80_000L);//原始文件大小超过80M读取时会报错
+                    return false;
+                }
+            case "xls":
+                return f.length() > 10 * 1024 * 1024;
+            case "xlsx":
+                //excel使用sax读取,暂不做解压过滤, 设置为默认值
+                // ZipSecureFile.setMinInflateRatio(0.01d);
+                ZipSecureFile.setMaxEntrySize(0xFFFFFFFFL);
+                return f.length() > 10 * 1024 * 1024;
+            case "pdf":
+                return f.length() > 100 * 1024 * 1024;
+            default:
+                return false;
+        }
+    }
+
     public CheckResult checkDoc(File f) {
-        if(f.length()>100*1024*1024){
-            log.info("ignore file:"+f.getAbsolutePath());
+        if (isLargeSize(f)) {
+            log.info("ignore file:" + f.getAbsolutePath());
             return CheckResult.IGNORE;
         }
         try (FileInputStream fis = new FileInputStream(f);
@@ -107,8 +126,8 @@ public class FileChecker {
     }
 
     public CheckResult checkDocx(File f) {
-        if(f.length()>100*1024*1024){
-            log.info("ignore file:"+f.getAbsolutePath());
+        if (isLargeSize(f)) {
+            log.info("ignore file:" + f.getAbsolutePath());
             return CheckResult.IGNORE;
         }
         try (FileInputStream fis = new FileInputStream(f);
@@ -128,16 +147,17 @@ public class FileChecker {
         return CheckResult.PASS;
     }
 
+    @Deprecated
     public CheckResult checkXls(File f) {
-        if (f.length() > 10 * 1024 * 1024) {
-            log.info("ignore file:" + f.getAbsolutePath());
-            return CheckResult.IGNORE;
-        }
         if (f.getName().startsWith("~$") && f.length() < 500) {
             return CheckResult.PASS;
         }
+        if (isLargeSize(f)) {
+            log.info("ignore file:" + f.getAbsolutePath());
+            return CheckResult.IGNORE;
+        }
         try (FileInputStream in = new FileInputStream(f);
-             HSSFWorkbook workbook = new HSSFWorkbook(in);) {
+             HSSFWorkbook workbook = new HSSFWorkbook(in)) {
             HSSFSheet sheet;
             for (int i = 0; i < workbook.getNumberOfSheets(); i++) {//获取每个Sheet表
                 sheet = workbook.getSheetAt(i);
@@ -159,16 +179,17 @@ public class FileChecker {
         return CheckResult.PASS;
     }
 
+    @Deprecated
     public CheckResult checkXlsx(File f) {
-        if (f.length() > 10 * 1024 * 1024) {
-            log.info("ignore file:" + f.getAbsolutePath());
-            return CheckResult.IGNORE;
-        }
         if (f.getName().startsWith("~$") && f.length() < 500) {
             return CheckResult.PASS;
         }
+        if (isLargeSize(f)) {
+            log.info("ignore file:" + f.getAbsolutePath());
+            return CheckResult.IGNORE;
+        }
         try (FileInputStream in = new FileInputStream(f);
-             XSSFWorkbook workbook = new XSSFWorkbook(in);) {
+             XSSFWorkbook workbook = new XSSFWorkbook(in)) {
             XSSFSheet sheet;
             for (int i = 0; i < workbook.getNumberOfSheets(); i++) {//获取每个Sheet表
                 sheet = workbook.getSheetAt(i);
@@ -193,15 +214,14 @@ public class FileChecker {
     public CheckResult checkExcel(File f) {
         final CheckResult[] data = {null};
         try {
-            if(f.length()>10*1024*1024){
-                log.info("ignore file:"+f.getAbsolutePath());
-                return CheckResult.IGNORE;
-            }
             if (f.getName().startsWith("~$") && f.length() < 500) {
                 return CheckResult.PASS;
             }
-            // ExcelUtil.
-            readBySax(f, -1, (sheetIndex, rowIndex, rowList) -> {
+            if (isLargeSize(f)) {
+                log.info("ignore file:" + f.getAbsolutePath());
+                return CheckResult.IGNORE;
+            }
+            ExcelUtil.readBySax(f, -1, (sheetIndex, rowIndex, rowList) -> {
                 for (Object c : rowList) {
                     if (c == null) continue;
                     CheckResult checkResult = rule.checkTest(c.toString());
@@ -222,11 +242,11 @@ public class FileChecker {
     }
 
     public CheckResult checkPDF(File f) {
-        if(f.length()>100*1024*1024){
-            log.info("ignore file:"+f.getAbsolutePath());
+        if (isLargeSize(f)) {
+            log.info("ignore file:" + f.getAbsolutePath());
             return CheckResult.IGNORE;
         }
-        try (PDDocument pdDocument = PDDocument.load(f, MemoryUsageSetting.setupTempFileOnly());) {
+        try (PDDocument pdDocument = PDDocument.load(f, MemoryUsageSetting.setupTempFileOnly())) {
             int pages = pdDocument.getNumberOfPages();//获取总页码
             PDFTextStripper stripper = new PDFTextStripper();//获取文本内容
             stripper.setSortByPosition(true);//设置输出顺序（是否排序）
@@ -248,40 +268,4 @@ public class FileChecker {
         return CheckResult.PASS;
     }
 
-
-    public void readBySax(File file, int rid, RowHandler rowHandler) throws POIException {
-        final ExcelSaxReader<?> reader = ExcelFileUtil.isXlsx(file)
-                ? new Excel07SaxReader2(rowHandler)
-                : new Excel03SaxReader2(rowHandler);
-        reader.read(file, rid);
-    }
-
-    static class Excel07SaxReader2 extends Excel07SaxReader {
-        public Excel07SaxReader2(RowHandler rowHandler) {
-            super(rowHandler);
-        }
-        @Override
-        public Excel07SaxReader read(File file, String idOrRidOrSheetName) throws POIException {
-            try (OPCPackage open = OPCPackage.open(file, PackageAccess.READ);){
-                return read(open, idOrRidOrSheetName);
-            } catch (InvalidFormatException | IOException e) {
-                throw new POIException(e);
-            }
-        }
-    }
-
-    static class Excel03SaxReader2 extends Excel03SaxReader {
-        public Excel03SaxReader2(RowHandler rowHandler) {
-            super(rowHandler);
-        }
-        @Override
-        public Excel03SaxReader read(File file, String idOrRidOrSheetName) throws POIException {
-            try (POIFSFileSystem poifsFileSystem = new POIFSFileSystem(file, true);) {
-                return read(poifsFileSystem, idOrRidOrSheetName);
-            } catch (IOException e) {
-                throw new POIException(e);
-            }
-        }
-    }
-    
 }
