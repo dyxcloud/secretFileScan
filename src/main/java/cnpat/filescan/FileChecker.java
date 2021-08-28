@@ -81,8 +81,8 @@ public class FileChecker {
                 if (f.length() > 90 * 1024 * 1024) {
                     return true;
                 } else {
-                    // ZipSecureFile.setMinInflateRatio(0.05d);//poi解压比例限制
-                    ZipSecureFile.setMaxEntrySize(80_000L);//原始文件大小超过80M读取时会报错
+                    // ZipSecureFile.setMinInflateRatio(0.03d);//poi解压比例限制
+                    ZipSecureFile.setMaxEntrySize(80 * 1024 * 1024L);//原始文件大小超过80M读取时会报错
                     return false;
                 }
             case "xls":
@@ -142,7 +142,11 @@ public class FileChecker {
                 }
             }
         } catch (Exception e) {
-            log.error("读取文件失败: " + f.getAbsolutePath(), e);
+            if (e.getMessage() != null && e.getMessage().contains("Zip bomb detected")) {
+                return CheckResult.IGNORE;
+            } else {
+                log.error("读取文件失败: " + f.getAbsolutePath(), e);
+            }
         }
         return CheckResult.PASS;
     }
