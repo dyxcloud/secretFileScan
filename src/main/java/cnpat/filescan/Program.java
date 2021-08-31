@@ -61,7 +61,7 @@ public class Program {
                         log.error("check error",e);
                     }
                 }
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error("walkPath error",e);
             }
         }

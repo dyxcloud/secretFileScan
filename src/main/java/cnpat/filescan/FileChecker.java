@@ -266,7 +266,7 @@ public class FileChecker {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error("读取文件失败: " + f.getAbsolutePath(), e);
         }
         return CheckResult.PASS;
