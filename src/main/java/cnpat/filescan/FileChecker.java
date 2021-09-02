@@ -16,14 +16,15 @@ import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -107,14 +108,16 @@ public class FileChecker {
         try (FileInputStream fis = new FileInputStream(f);
              HWPFDocument doc = new HWPFDocument(fis)) {
             WordExtractor wordExtractor = new WordExtractor(doc);
-            String text = wordExtractor.getText();
-            String[] split = text.split("[\r\n]");
-            for (String s : split) {
-                CheckResult checkResult = rule.checkTest(s);
-                if (checkResult.isRisk()) {
-                    return checkResult;
+            String[] paragraphText = wordExtractor.getParagraphText();
+            for (String text : paragraphText) {
+                String[] split = text.split("[\r\n]");
+                for (String s : split) {
+                    CheckResult checkResult = rule.checkTest(s);
+                    if (checkResult.isRisk()) {
+                        return checkResult;
+                    }
                 }
-            }
+            }   
         } catch (Exception e) {
             if ("The document is really a OOXML file".equals(e.getMessage())) {
                 return checkDocx(f);
@@ -132,13 +135,15 @@ public class FileChecker {
         }
         try (FileInputStream fis = new FileInputStream(f);
              XWPFDocument doc = new XWPFDocument(fis)) {
-            XWPFWordExtractor extractor = new XWPFWordExtractor(doc);
-            String text = extractor.getText();
-            String[] split = text.split("[\r\n]");
-            for (String s : split) {
-                CheckResult checkResult = rule.checkTest(s);
-                if (checkResult.isRisk()) {
-                    return checkResult;
+            List<XWPFParagraph> paragraphs = doc.getParagraphs();
+            for (XWPFParagraph para : paragraphs) {
+                String text = para.getText();
+                String[] split = text.split("[\r\n]");
+                for (String s : split) {
+                    CheckResult checkResult = rule.checkTest(s);
+                    if (checkResult.isRisk()) {
+                        return checkResult;
+                    }
                 }
             }
         } catch (Exception e) {
